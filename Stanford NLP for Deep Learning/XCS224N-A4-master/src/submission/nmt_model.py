@@ -72,7 +72,7 @@ class NMT(nn.Module):
                                hidden_size=self.hidden_size,
                                bidirectional=True,
                                dropout=self.dropout_rate,
-                               num_layers=1    # usually 1 or 2, PDF does not specify so starting with 1
+                               num_layers=2   
                                )
 
 
