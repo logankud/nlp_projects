@@ -71,8 +71,8 @@ class NMT(nn.Module):
         self.encoder = nn.LSTM(input_size=embed_size,
                                hidden_size=self.hidden_size,
                                bidirectional=True,
-                               dropout=self.dropout_rate,
-                               num_layers=2   
+                            #    dropout=self.dropout_rate,
+                            #    num_layers=1    # usually 1 or 2, PDF does not specify so starting with 1
                                )
 
 
@@ -92,12 +92,11 @@ class NMT(nn.Module):
                                         out_features=self.hidden_size, bias=False)
 
         self.target_vocab_projection = nn.Linear(in_features=self.hidden_size,
-                                        out_features=len(self.vocab.tgt),
-                                        bias=False)
+                                        out_features=len(self.vocab.tgt), bias=False)
 
         self.dropout = nn.Dropout(p=self.dropout_rate)
 
-
+      
 
         ### END CODE HERE
 
@@ -280,35 +279,35 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/generated/torch.stack.html#torch-stack
         ### START CODE HERE (~9 Lines)
 
-        # Apply attention projection
+        # # Apply attention projection
         enc_hiddens_proj = self.att_projection(enc_hiddens)  # (b, 2*h) -> (b, h)
 
-        # Create target sentence embeddings
+        # # Create target sentence embeddings
         Y = self.model_embeddings.target(target_padded)    #  {tgt_len, b, e}
         
-        # Iterate through each timestamp
+        # # Iterate through each timestamp
         for Y_t in torch.split(Y,1):    # split_size_or_sections=1 to get shape (1, b, e)
 
-            # Squeeze to remove 1 demension
+        #     # Squeeze to remove 1 demension
             Y_t = Y_t.squeeze(0)    # shape (1, b, e) -> (b, e)
 
-            # Intermediate input to the LSTM cell for generating o_t, not the prediction.
+        #     # Intermediate input to the LSTM cell for generating o_t, not the prediction.
             Ybar_t = torch.cat([Y_t, o_prev], dim=-1)    # shape (b, e + h)    - combines embedding at t (e) w/ hidden layer at t (h), last dimension (per pdf)
 
-            # Compute decoder state & output state using step function 
-            decoder_state, o_t, e_t = self.step(Ybar_t,dec_state,enc_hiddens,
-                                            enc_hiddens_proj,enc_masks)
-
-            # Combine outputs
+        #     # Compute decoder state & output state using step function 
+            dec_state, o_t, e_t = self.step(Ybar_t, dec_state, enc_hiddens, enc_hiddens_proj, enc_masks)
+            # dec_state, o_t, _       = self.step(Ybar_t, dec_state, enc_hiddens, enc_hiddens_proj, enc_masks)
+        #     # Combine outputs
             combined_outputs.append(o_t)
 
-            # Overwrite previous output with current output
+        #     # Overwrite previous output with current output
             o_prev = o_t
 
-        # Stack outputs
-        combined_outputs = torch.stack(combined_outputs)  # (tgt_len, b, h)  
+  
+  
+  
 
-            
+        combined_outputs = torch.stack(combined_outputs)            
 
         ### END CODE HERE
 
