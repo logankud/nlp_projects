@@ -176,6 +176,45 @@ class CharCorruptionDataset(Dataset):
         ### [part e]: see spec above
 
         ### START CODE HERE
+
+        # Define truncation length
+        trunc_len = random.randint(4,int(self.block_size*3/4))
+
+        # truncate document
+        truncated_doc = self.data[idx][:trunc_len]
+
+        # Set mask length randomly between 1 - trunc_len / 2 
+        mask_length = max(1, random.randint(1, trunc_len // 2))
+
+        # Randomly set the mask start between idx 0 - mask_length
+        mask_start = random.randint(0, trunc_len - mask_length)
+
+        # Prefix = all chars up to the mask_start
+        prefix = truncated_doc[:mask_start]
+
+        # Masked content = all chars between mask_start - the mask length
+        masked_content = truncated_doc[mask_start:mask_start + mask_length]
+
+        # Suffix = all chars after mask length
+        suffix = truncated_doc[mask_start + mask_length:]
+
+        # Construct new masked substring
+        masked_string = prefix + self.MASK_CHAR + suffix + self.MASK_CHAR + masked_content + self.MASK_CHAR 
+
+        # Add padding
+        masked_string = masked_string + self.PAD_CHAR * (self.block_size - len(masked_string))   # pad up to self.block_size length
+
+        # Generate input, output pairs
+        x = masked_string[:-1]   # all characters except the last one
+        y = masked_string[1:]    # all characters after the first one
+
+        # Encodings - encode as tensors
+        x_tensor = torch.tensor([self.stoi[char] for char in x], dtype=torch.long)
+        y_tensor = torch.tensor([self.stoi[char] for char in y], dtype=torch.long)
+
+
+        return x_tensor, y_tensor
+    
         ### END CODE HERE
 
         raise NotImplementedError
