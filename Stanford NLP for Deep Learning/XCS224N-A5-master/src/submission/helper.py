@@ -111,6 +111,28 @@ def pretrain(pretrain_dataset, block_size, model, pretrain_lr=6e-3, writer=None)
     tconf = None #TrainerConfig object (see trainer.py for more details)
 
     ### START CODE HERE
+
+    # Define trainer config
+    tconf = TrainerConfig(
+        max_epochs=650,
+        batch_size=128,
+        learning_rate=pretrain_lr,
+        lr_decay=True,
+        warmup_tokens=512 * 20,
+        final_tokens=200 * len(pretrain_dataset) * block_size,
+        num_workers=0,
+        writer=writer
+    )
+
+    # Split pretraining dataset into training and validation datasets
+    total_len = len(pretrain_dataset)
+    train_size = int(0.9 * total_len)  # 90/10 split
+    val_size = total_len - train_size
+    train_dataset, val_dataset = torch.utils.data.random_split(pretrain_dataset, [train_size, val_size])
+
+    # Initialize Trainer object
+    trainer_obj = Trainer(model, train_dataset, val_dataset, tconf)
+
     ### END CODE HERE
     return tconf, trainer_obj
 
