@@ -67,7 +67,8 @@ def finetune(reading_params_path, finetune_corpus_path, pretrain_dataset, block_
     if reading_params_path:
 
         # load (overwrite existing model with) params 
-        model.load(reading_params_path, map_location=torch.device('cpu'), weights_only=True)
+        state_dict = torch.load(reading_params_path, map_location=torch.device('cpu'))  # Load saved weights
+        model.load_state_dict(state_dict)  # Load weights into the model
 
     # Load dataset
     train_dataset = NameDataset(open(finetune_corpus_path).read(), pretrain_dataset)
