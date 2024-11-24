@@ -1,4 +1,3 @@
-
 """
 GPT model:
 - the initial stem consists of a combination of token encoding and a positional encoding
@@ -70,14 +69,14 @@ class DownProjectBlock(nn.Module):
     while using the CausalCrossAttention layer instead of the regular
     CausalSelfAttention layer.
 
-    You also need to initialize the parameter for the basis vectors `self.C` here.
-    Initialize `self.C` with appropriate dimensions and xavier_uniform initialization.
+    You also need to initialize the parameter for the basis vectors self.C here.
+    Initialize self.C with appropriate dimensions and xavier_uniform initialization.
 
     self.C should be 1 x bottleneck_dim x n_embd. We need the first dimension
     for appropriate broadcasting along the batch_size dimension of the input
     sequence.
 
-    `self.C` will be used to compute the Query vector for the cross attention
+    self.C will be used to compute the Query vector for the cross attention
     layer.
     """
     def __init__(self, config):
@@ -87,6 +86,20 @@ class DownProjectBlock(nn.Module):
         ### Hint: Copy over the code from Block and make necessary modifications.
 
         ### START CODE HERE
+        self.ln1 = nn.LayerNorm(config.n_embd)
+        self.ln2 = nn.LayerNorm(config.n_embd)
+        self.attn = CausalCrossAttention(config)
+        self.mlp = nn.Sequential(
+            nn.Linear(config.n_embd, 4 * config.n_embd),
+            nn.GELU(),
+            nn.Linear(4 * config.n_embd, config.n_embd),
+            nn.Dropout(config.resid_pdrop),
+        )
+
+        # Initialize learnable basis vectors self.C
+        self.C = nn.Parameter(torch.empty(1, config.bottleneck_dim, config.n_embd))
+        nn.init.xavier_uniform_(self.C)
+
         ### END CODE HERE
 
     def forward(self, x_input):
@@ -98,6 +111,19 @@ class DownProjectBlock(nn.Module):
         ### Should be around 3-5 lines.
 
         ### START CODE HERE
+
+        # Normalize the inputs 
+        C_normalized = self.ln1(self.C)
+        x_normalized = self.ln1(x_input)
+
+        # Cross-attention between C & x (both normalized), added to x_input
+        x = x_input + self.attn(C_normalized, x_normalized)
+
+        # Second normalization layer & MLP
+        x += self.mlp(self.ln2(x))
+
+        return x
+    
         ### END CODE HERE
 
 
@@ -114,6 +140,16 @@ class UpProjectBlock(nn.Module):
         ### Hint: Copy over the code from Block and make necessary modifications.
 
         ### START CODE HERE
+        self.ln1 = nn.LayerNorm(config.n_embd)
+        self.ln2 = nn.LayerNorm(config.n_embd)
+        self.attn = CausalCrossAttention(config)
+        self.mlp = nn.Sequential(
+            nn.Linear(config.n_embd, 4 * config.n_embd),
+            nn.GELU(),
+            nn.Linear(4 * config.n_embd, config.n_embd),
+            nn.Dropout(config.resid_pdrop),
+        )
+
         ### END CODE HERE
 
     def forward(self, y, x_input):
@@ -126,6 +162,19 @@ class UpProjectBlock(nn.Module):
         ### Should be around 3-5 lines.
 
         ### START CODE HERE
+
+        # Pass C through the layernorm layers
+        x_normalized = self.ln1(x_input)
+        y_normalized = self.ln1(y)
+
+        # Cross-attention between y & x (both normalized), added to y
+        y += self.attn(y_normalized, x_normalized)
+
+        # Second normalization layer & MLP
+        y += self.mlp(self.ln2(y_normalized))
+
+        return y_normalized
+
         ### END CODE HERE
 
 class GPT(nn.Module):
@@ -206,4 +255,4 @@ class GPT(nn.Module):
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=0)
 
-        return logits, loss
+        return logits, loss 
